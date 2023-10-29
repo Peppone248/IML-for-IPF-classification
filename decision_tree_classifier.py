@@ -6,26 +6,56 @@ import shap
 from sklearn.model_selection import train_test_split, GridSearchCV, LeaveOneOut, cross_val_score
 from sklearn.tree import _tree
 from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, precision_recall_curve
 from useful_methods import features_encoding, shap_graphs_decision_tree, plot_conf_matrix, GSCV_tuning_model, \
     shap_global_charts_tree_exp
+from numpy.linalg import norm
+import math
+import scipy.spatial as sp
+import scipy
 
 pandas.set_option('display.max_columns', None)
 data = pandas.read_csv('new Data Set Fibrosi.csv')
 df = pandas.DataFrame(data)
 
-# print(df_women)
-
 features_encoding(df)
-
 
 # df = df.drop('ID Lab', axis=1)
 df = df.drop('Patologia', axis=1)
 
-# df = df.dropna()
+df = df.dropna()
 
 feature_cols = ['Genere', 'Fumo', 'FVC%', 'FEV1%', 'DLCO', 'Macro%', 'Neu%', 'Lin%', 'Età',
                 '2-DDCT KL-6', '2-DDCT MIR21', 'FEV1%/FVC%', '2-DDCT MIR92A']
+
+new_df = df[feature_cols]
+
+scalar_product_df = new_df.mul(new_df)
+print(df['FVC%'].dot(df['Genere']))
+for i in range(len(feature_cols)):
+    scalar_prod_features = df[feature_cols[i]].dot(new_df)
+    print('Scalar product of ', str(feature_cols[i]),': \n', scalar_prod_features)
+
+print(scalar_product_df)
+
+cosine_result = 1 - sp.distance.cdist(new_df.T, new_df.T, 'cosine')
+# print(str(feature_cols), ': \n', cosine_result, '\n')
+cosine_df = pandas.DataFrame(cosine_result)
+cosine_df.columns = feature_cols
+cosine_df.index = feature_cols
+print(cosine_df)
+cosine_df.to_csv('cosine similarity features.csv')
+
+
+fvc_val = df['Genere'].dropna().to_numpy()
+fev1_val = df['Genere'].dropna().to_numpy()
+
+cosine = np.dot(fvc_val,fev1_val)/(norm(fvc_val)*norm(fev1_val))
+print('Cosine Similarity: ', cosine)
+
+"""cosine = 1 - sp.distance.cdist(df['Genere'], new_df, 'cosine')
+print(cosine)"""
 
 classes = ['ALTRO', 'IPF']
 
@@ -36,6 +66,7 @@ X_not_converted = df[feature_cols]
 X = df[feature_cols].values
 y = df['IPFVSALTRO'].values
 X_id = df['ID Lab'].values
+
 
 unique, counts = np.unique(y, return_counts=True)
 plt.pie(counts, labels=classes, autopct='%.0f%%')
@@ -168,11 +199,30 @@ for i in range(2, len(list_test_sets)):
 
 # bringing back variable names
 X_test = pandas.DataFrame(X[test_set], columns=feature_cols)
-print('X_test: ', X_test)
-print(X_test.dtypes)
-# print(shap_values[1][:])
+list_sv_for_cosine = []
+for i in range(len(list_shap_values)):
+    list_sv_for_cosine.append(list_shap_values[i][1][0])
+    print(list_shap_values[i][1][0], end=" ")
+print()
+# print(list_sv_for_cosine)
 
-dice_data = dice_ml.Data(dataframe=X_train_df, continuous_features=continuous_features, outcome_name='IPFVSALTRO')
+
+sv_first_istance = list_sv_for_cosine[26]
+sv_second_istance = list_sv_for_cosine[5]
+
+similarity = cosine_similarity([sv_first_istance], [sv_second_istance])[0][0]
+print(similarity)
+
+cosine_sv = 1 - sp.distance.cdist(list_sv_for_cosine, list_sv_for_cosine, 'cosine')
+cosine_sim_sv_df = pandas.DataFrame(cosine_sv)
+cosine_sim_sv_df.columns = df['ID Lab']
+cosine_sim_sv_df.index = df['ID Lab']
+print(cosine_sim_sv_df)
+
+
+"""for i in range(len(list_shap_values)): """
+
+"""dice_data = dice_ml.Data(dataframe=X_train_df, continuous_features=continuous_features, outcome_name='IPFVSALTRO')
 dice_model = dice_ml.Model(model=model, backend='sklearn')
 exp = dice_ml.Dice(dice_data, dice_model, method='random')
 e = exp.generate_counterfactuals(X_test, total_CFs=5, desired_class="opposite")
@@ -181,7 +231,7 @@ e.cf_examples_list[7].final_cfs_df.to_csv(path_or_buf='counterfactuals_dt - 7.cs
 e.cf_examples_list[8].final_cfs_df.to_csv(path_or_buf='counterfactuals_dt - 8.csv', index=True)
 e.cf_examples_list[12].final_cfs_df.to_csv(path_or_buf='counterfactuals_dt - 12.csv', index=True)
 e.cf_examples_list[13].final_cfs_df.to_csv(path_or_buf='counterfactuals_dt - 13.csv', index=True)
-e.visualize_as_dataframe(show_only_changes=True)
+e.visualize_as_dataframe(show_only_changes=True)"""
 
 shap.initjs()
 sample_idx = 0
@@ -247,3 +297,7 @@ def get_rules(tree, feature_names, class_names):
 
 rules = get_rules(model, feature_names=feature_cols, class_names=['ALTRO', 'IPF'])
 for r in rules: print(r)
+
+
+
+

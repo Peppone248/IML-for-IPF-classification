@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import shap
+import itertools
 from shap import maskers
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
@@ -98,8 +99,8 @@ def shap_global_charts_tree_exp(models, sample_idx, X_test, feature_cols):
             shap_exp += explainer(X_test)
 
     shap_exp /= 38
-    shap.plots.heatmap(shap_exp[:,:,0], max_display=len(feature_cols))
-    shap.plots.bar(shap_exp[:,:,0], show=False)
+    shap.plots.heatmap(shap_exp[:, :, 0], max_display=len(feature_cols))
+    shap.plots.bar(shap_exp[:, :, 0], show=False)
     plt.xlabel('mean(|SHAP value|)')
     plt.show()
     sample_idx += 1
@@ -219,3 +220,15 @@ def GSCV_tuning_model(X, y, cv, parameters):
         table_grid_search(grid, all_ranks=True)
     else:
         print("check")
+
+
+def cartesian_product_features(df, feature_cols):
+    feature_chosen = input()
+
+    if feature_chosen == 'Genere':
+        new_df = df.drop(feature_chosen, axis=1)
+        cartesian_prod = itertools.product(df['Genere'], new_df)
+        print(cartesian_prod)
+
+
+
