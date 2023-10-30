@@ -2,6 +2,7 @@ import dice_ml
 import numpy as np
 import pandas
 import matplotlib.pyplot as plt
+import seaborn as sns
 import shap
 from sklearn.model_selection import train_test_split, GridSearchCV, LeaveOneOut, cross_val_score
 from sklearn.tree import _tree
@@ -11,7 +12,6 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_s
 from useful_methods import features_encoding, shap_graphs_decision_tree, plot_conf_matrix, GSCV_tuning_model, \
     shap_global_charts_tree_exp
 from numpy.linalg import norm
-import math
 import scipy.spatial as sp
 import scipy
 
@@ -31,13 +31,21 @@ feature_cols = ['Genere', 'Fumo', 'FVC%', 'FEV1%', 'DLCO', 'Macro%', 'Neu%', 'Li
 
 new_df = df[feature_cols]
 
-scalar_product_df = new_df.mul(new_df)
-print(df['FVC%'].dot(df['Genere']))
+print(df['Fumo'].dot(df['Fumo']))
+scalar_product_feat_df = pandas.DataFrame()
 for i in range(len(feature_cols)):
     scalar_prod_features = df[feature_cols[i]].dot(new_df)
+    scalar_product_feat_df[i]=scalar_prod_features
     print('Scalar product of ', str(feature_cols[i]),': \n', scalar_prod_features)
 
-print(scalar_product_df)
+scalar_product_feat_df.columns = feature_cols
+print(scalar_product_feat_df)
+sns.set()
+sns.heatmap(scalar_product_feat_df, annot=True, cmap='Blues', fmt='.1f')
+plt.legend([],[], frameon=False)
+plt.show()
+
+# print('Scalar product from iteration: \n', scalar_prod_features_df)
 
 cosine_result = 1 - sp.distance.cdist(new_df.T, new_df.T, 'cosine')
 # print(str(feature_cols), ': \n', cosine_result, '\n')
@@ -47,12 +55,11 @@ cosine_df.index = feature_cols
 print(cosine_df)
 cosine_df.to_csv('cosine similarity features.csv')
 
-
-fvc_val = df['Genere'].dropna().to_numpy()
-fev1_val = df['Genere'].dropna().to_numpy()
-
-cosine = np.dot(fvc_val,fev1_val)/(norm(fvc_val)*norm(fev1_val))
-print('Cosine Similarity: ', cosine)
+sns.set()
+#cosine_df = cosine_df.set_index('Genere')
+sns.heatmap(cosine_df, annot=True, fmt='.2f', linewidths=.7)
+plt.legend([],[], frameon=False)
+plt.show()
 
 """cosine = 1 - sp.distance.cdist(df['Genere'], new_df, 'cosine')
 print(cosine)"""
@@ -206,7 +213,6 @@ for i in range(len(list_shap_values)):
 print()
 # print(list_sv_for_cosine)
 
-
 sv_first_istance = list_sv_for_cosine[26]
 sv_second_istance = list_sv_for_cosine[5]
 
@@ -218,6 +224,14 @@ cosine_sim_sv_df = pandas.DataFrame(cosine_sv)
 cosine_sim_sv_df.columns = df['ID Lab']
 cosine_sim_sv_df.index = df['ID Lab']
 print(cosine_sim_sv_df)
+sns.set()
+cosine_sim_sv_df = cosine_sim_sv_df.set_index(df['ID Lab'])
+sns.heatmap(cosine_sim_sv_df, annot=True, fmt='.2f', linewidths=.7)
+plt.legend([],[], frameon=False)
+plt.show()
+
+
+
 
 
 """for i in range(len(list_shap_values)): """
