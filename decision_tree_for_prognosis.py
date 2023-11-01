@@ -7,7 +7,7 @@ from sklearn.model_selection import GridSearchCV, LeaveOneOut, cross_val_score
 from sklearn.tree import DecisionTreeClassifier, export_graphviz, plot_tree
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report
 from useful_methods import plot_conf_matrix, GSCV_tuning_model, features_encoding, shap_graphs_decision_tree, \
-    shap_global_charts
+    shap_global_charts, shap_global_charts_tree_exp
 
 pandas.set_option('display.max_columns', None)
 data = pandas.read_csv('new Data Set Fibrosi.csv')
@@ -25,6 +25,7 @@ classes = ['LENTA', 'RAPIDA']
 X_not_converted = df[feature_cols_prognosis]
 X = df[feature_cols_prognosis].values
 y = df['RAPIDAVSLENTA'].values
+X_id = df['ID Lab'].values
 
 cv = LeaveOneOut()
 cv.get_n_splits(X)
@@ -122,15 +123,9 @@ plt.figure(figsize=(10, 10))
 plot_tree(model, feature_names=feature_cols_prognosis, class_names=classes, max_depth=model.max_depth, filled=True)
 
 plot_conf_matrix(model, y_true, y_pred, classes)
+plt.show()
 
-for i in range(len(models)):
-
-    feat_importances = pandas.DataFrame(models[i].feature_importances_, index=X_not_converted.columns, columns=["Importance"])
-    feat_importances.sort_values(by='Importance', ascending=False, inplace=True)
-    feat_importances.plot(kind='bar', figsize=(9, 7))
-    plt.show()
-
-"""test_set = list_test_sets[0]
+test_set = list_test_sets[0]
 shap_values = np.array(list_shap_values[0])
 for i in range(2, len(list_test_sets)):
     test_set = np.concatenate((test_set, list_test_sets[i]), axis=0)
@@ -145,9 +140,9 @@ shap.decision_plot(explainer.expected_value[1], shap_values[1], feature_names=fe
 
 shap.initjs()
 sample_idx = 0
-# shap_global_charts(models, sample_idx, X_test, feature_cols_prognosis)
+shap_global_charts_tree_exp(models, sample_idx, X_test, feature_cols_prognosis)
 for sample_idx in range(len(X_train)):
-    shap_graphs_decision_tree(models[sample_idx], X, X_train, feature_cols_prognosis, sample_idx, y_true)
+    shap_graphs_decision_tree(models[sample_idx], X, X_train, feature_cols_prognosis, sample_idx, y_true, X_id)
     sample_idx += 1
 
 
@@ -205,4 +200,3 @@ def get_rules(tree, feature_names, class_names):
 
 rules = get_rules(model, feature_names=feature_cols_prognosis, class_names=['ALTRO', 'IPF'])
 for r in rules: print(r)
-"""

@@ -29,9 +29,20 @@ df = df.dropna()
 feature_cols = ['Genere', 'Fumo', 'FVC%', 'FEV1%', 'DLCO', 'Macro%', 'Neu%', 'Lin%', 'Età',
                 '2-DDCT KL-6', '2-DDCT MIR21', 'FEV1%/FVC%', '2-DDCT MIR92A']
 
+cosine_sim_feat_by_rows = df
+cosine_sim_feat_by_rows = cosine_sim_feat_by_rows.set_index('ID Lab')
+v = cosine_similarity(cosine_sim_feat_by_rows.values)
+cosine_sim_feat_by_rows = pandas.DataFrame(v, columns=df['ID Lab'])
+cosine_sim_feat_by_rows.index = df['ID Lab']
+print(cosine_sim_feat_by_rows)
+
+sns.set()
+sns.heatmap(cosine_sim_feat_by_rows, annot=True, cmap='Blues', fmt='.1f')
+plt.legend([],[], frameon=False)
+plt.show()
+
 new_df = df[feature_cols]
 
-print(df['Fumo'].dot(df['Fumo']))
 scalar_product_feat_df = pandas.DataFrame()
 for i in range(len(feature_cols)):
     scalar_prod_features = df[feature_cols[i]].dot(new_df)
@@ -45,7 +56,9 @@ sns.heatmap(scalar_product_feat_df, annot=True, cmap='Blues', fmt='.1f')
 plt.legend([],[], frameon=False)
 plt.show()
 
-# print('Scalar product from iteration: \n', scalar_prod_features_df)
+"""
+Features cosine matrix by columns
+"""
 
 cosine_result = 1 - sp.distance.cdist(new_df.T, new_df.T, 'cosine')
 # print(str(feature_cols), ': \n', cosine_result, '\n')
@@ -219,6 +232,19 @@ sv_second_istance = list_sv_for_cosine[5]
 similarity = cosine_similarity([sv_first_istance], [sv_second_istance])[0][0]
 print(similarity)
 
+scalar_prod_sv = np.dot(list_sv_for_cosine, np.array(list_sv_for_cosine).T.tolist())
+print(scalar_prod_sv)
+
+scalar_prod_sv_df = pandas.DataFrame(scalar_prod_sv)
+scalar_prod_sv_df.columns = df['ID Lab']
+scalar_prod_sv_df.index = df['ID Lab']
+print(scalar_prod_sv_df)
+sns.set()
+scalar_prod_sv_df = scalar_prod_sv_df.set_index(df['ID Lab'])
+sns.heatmap(scalar_prod_sv_df, annot=True, fmt='.2f', linewidths=.2)
+plt.legend([],[], frameon=False)
+plt.show()
+
 cosine_sv = 1 - sp.distance.cdist(list_sv_for_cosine, list_sv_for_cosine, 'cosine')
 cosine_sim_sv_df = pandas.DataFrame(cosine_sv)
 cosine_sim_sv_df.columns = df['ID Lab']
@@ -230,6 +256,18 @@ sns.heatmap(cosine_sim_sv_df, annot=True, fmt='.2f', linewidths=.7)
 plt.legend([],[], frameon=False)
 plt.show()
 
+
+for i in range(len(feature_cols)):
+    scalar_prod_features = df[feature_cols[i]].dot(new_df)
+    scalar_product_feat_df[i] = scalar_prod_features
+    print('Scalar product of ', str(feature_cols[i]),': \n', scalar_prod_features)
+
+# scalar_product_feat_df.columns = feature_cols
+print(scalar_product_feat_df)
+sns.set()
+sns.heatmap(scalar_product_feat_df, annot=True, cmap='Blues', fmt='.1f')
+plt.legend([],[], frameon=False)
+plt.show()
 
 
 

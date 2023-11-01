@@ -8,6 +8,7 @@ pandas.set_option('display.max_columns', None)
 data = pandas.read_csv('new Data Set Fibrosi.csv')
 df = pandas.DataFrame(data)
 
+df = df.drop('ID Lab', axis=1)
 stats = df.describe()
 print(stats)
 
@@ -20,20 +21,43 @@ print(null_df)
 plt.plot(null_df.index, null_df['count'])
 plt.xticks(null_df.index, null_df.index, rotation=60, horizontalalignment='right')
 plt.xlabel('column names')
-plt.title('Distribuzione valori mancanti')
+plt.title('Missing values distribution')
 plt.margins(0.1)
 plt.show()
 
-df = df.drop('ID Lab', axis=1)
 gender = df['Genere'].values
+smoking = df['Fumo'].values
+IPF_distr = df['IPFVSALTRO'].values
+prognosis = df['RAPIDAVSLENTA'].values
 
 features_encoding(df)
 
 unique, counts = np.unique(gender, return_counts=True)
 plt.pie(counts, labels=['M','F'], autopct=lambda p: '{:.2f}%  ({:,.0f})'.format(p, p * sum(counts) / 100))
+plt.title('Gender distribution')
 plt.show()
 
-"""
+unique, counts = np.unique(smoking, return_counts=True)
+plt.pie(counts, labels=['Sì','No'], autopct=lambda p: '{:.2f}%  ({:,.0f})'.format(p, p * sum(counts) / 100))
+plt.title('Smoking status distribution')
+plt.show()
+
+unique, counts = np.unique(IPF_distr, return_counts=True)
+plt.pie(counts, labels=['ALTRO','IPF'], autopct=lambda p: '{:.2f}%  ({:,.0f})'.format(p, p * sum(counts) / 100))
+plt.title('Pathology distribution')
+plt.show()
+
+unique, counts = np.unique(prognosis, return_counts=True)
+plt.pie(counts, labels=['LENTA','RAPIDA'], autopct=lambda p: '{:.2f}%  ({:,.0f})'.format(p, p * sum(counts) / 100))
+plt.title('Prognosis distribution')
+plt.show()
+
+mat_correlation = df.corr()
+plt.figure(figsize=(13, 6))
+sns.heatmap(mat_correlation, vmax=1, annot=True, linewidths=.5)
+plt.xticks(rotation=30, horizontalalignment='right')
+plt.show()
+
 skew = {}
 kurt = {}
 for i in num_col:
@@ -43,25 +67,24 @@ for i in num_col:
     skew[i] = df[i].skew()
     kurt[i] = df[i].kurt()
 print(skew)
-
-
 plt.plot(list(skew.keys()), list(skew.values()))
+plt.title('Skewness graph')
 plt.xticks(rotation=45, horizontalalignment='right')
 plt.show()
 
 print(kurt)
 plt.plot(list(kurt.keys()), list(kurt.values()))
+plt.title('Kurtosis graph')
 plt.xticks(rotation=45, horizontalalignment='right')
 plt.show()
-"""
 
-"""for i in cat_col:
+for i in cat_col:
     if i in ['source']:
         continue
     plt.figure(figsize=(10, 5))
     chart = sns.countplot(data=df, x=i, palette='Set1')
     chart.set_xticklabels(chart.get_xticklabels(), rotation=45)
-    plt.show()"""
+    plt.show()
 
 """ 
 The skew() function used to calculate skewness in data. 
@@ -71,26 +94,20 @@ Skewness can be quantified to define the extent to which a distribution differs 
 The kurt() function used to calculate kurtosis in data. 
 Kurtosis is the measure of thickness or heaviness of the distribution. 
 It represents the height of the distribution.
-
 """
 
-"""df = df.iloc[:, 6:16]
+df = df.iloc[:, 6:16]
 df.boxplot(figsize=(20,15))
 plt.semilogy(labels=df.values)
-plt.show()"""
-
-"""sns.boxplot(data=df.iloc[:, 6:16], palette='Set2')
-plt.semilogy()
-plt.show()"""
-
-mat_correlation = df.corr()
-plt.figure(figsize=(13, 6))
-sns.heatmap(mat_correlation, vmax=1, annot=True, linewidths=.5)
-plt.xticks(rotation=30, horizontalalignment='right')
 plt.show()
 
-mean_lin = df['Neu%'].mean()
-print('Lin% features mean: ', mean_lin)
+sns.boxplot(data=df.iloc[:, 6:16], palette='Set2')
+plt.semilogy()
+plt.show()
+
+
+"""mean_lin = df['Neu%'].mean()
+print('Lin% features mean: ', mean_lin)"""
 
 
 """select_hp = df.loc[df['Patologia'] == 'HP']
