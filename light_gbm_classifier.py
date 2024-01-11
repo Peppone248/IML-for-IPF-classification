@@ -12,6 +12,7 @@ from sklearn.model_selection import GridSearchCV, LeaveOneOut, cross_val_score
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import MinMaxScaler
 from useful_methods import plot_conf_matrix, features_encoding, GSCV_tuning_model, shap_global_charts
+from functools import reduce
 
 pandas.set_option('display.max_columns', None)
 data = pandas.read_csv('new Data Set Fibrosi.csv')
@@ -138,19 +139,27 @@ print(X_test.dtypes)
 
 plot_conf_matrix(model, y_true, y_pred, classes)
 plt.show()
-lightgbm.plot_importance(model, importance_type='gain',
-                         ylabel=['Genere', 'FVC%', 'FEV1%', 'DLCO', 'DLCO/VA', 'Macro%', 'Neu%', 'Lin%', '2-DDCT KL-6',
-                                 '2-DDCT MIR21'])
+# lightgbm.plot_importance(model, importance_type='gain',ylabel=['Genere', 'FVC%', 'FEV1%', 'DLCO', 'DLCO/VA', 'Macro%', 'Neu%', 'Lin%', '2-DDCT KL-6', '2-DDCT MIR21'])
+
 sorted(zip(model.feature_importances_, feature_cols), reverse=True)
+dataframes = []
+for i in range(len(models)):
+    feat_importances = pandas.DataFrame(sorted(zip(models[i].feature_importances_, feature_cols)),  columns=['Value', 'Feature'])
+    dataframes.append(feat_importances)
+
+feat_importances_sum = reduce(lambda x, y: x.add(y, fill_value=0), dataframes)
+print(feat_importances_sum)
+sns_feat_imp = plt.figure(figsize=(20, 10))
+sns.barplot(x="Value", y='Feature', data=feat_importances_sum.sort_values(by="Value", ascending=False))
+plt.title('LightGBM Features (avg over folds)')
+plt.show()
+
 feature_imp = pandas.DataFrame(sorted(zip(model.feature_importances_, feature_cols)), columns=['Value', 'Feature'])
 sns_feat_imp = plt.figure(figsize=(20, 10))
 sns.barplot(x="Value", y="Feature", data=feature_imp.sort_values(by="Value", ascending=False))
 plt.title('LightGBM Features (avg over folds)')
 plt.show()
 
-fig, ax = plt.subplots(nrows=2, figsize=(16, 8), sharex=True)
-# lightgbm.plot_tree(models[30], tree_index=0, ax=ax[0])
-# model.trees_to_dataframe()
 
 shap_values /= 38
 shap.summary_plot(shap_values, plot_type='bar', feature_names=feature_cols, show=True)
@@ -167,8 +176,7 @@ exp = dice_ml.Dice(dice_data, dice_model, method='random')
 e = exp.generate_counterfactuals(X_test, total_CFs=5, desired_class="opposite", permitted_range={'Neu%': [0, 13],
                                                                                                  'Lin%':[0, 10],
                                                                                                  'Genere':[0,1]})
-# e.cf_examples_list[35].visualize_as_dataframe(show_only_changes=True)
-
+e.cf_examples_list[35].visualize_as_dataframe(show_only_changes=True)
 e.visualize_as_dataframe(show_only_changes=True)
 
 shap.initjs()

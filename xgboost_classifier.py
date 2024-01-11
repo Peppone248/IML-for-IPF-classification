@@ -10,6 +10,8 @@ from sklearn.model_selection import train_test_split, cross_val_score, GridSearc
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, f1_score, accuracy_score, classification_report
 from grid_search_utils import plot_grid_search, table_grid_search
 from useful_methods import plot_conf_matrix, features_encoding, GSCV_tuning_model, shap_global_charts
+from functools import reduce
+import dice_ml
 
 data = pandas.read_csv('new Data Set Fibrosi.csv')
 df = pandas.DataFrame(data)
@@ -31,6 +33,7 @@ feature_cols = ['Fumo', 'FVC%', 'FEV1%', 'DLCO', 'Macro%', 'Neu%', 'Lin%',
 
 classes = ['ALTRO', 'IPF']
 
+X_not_converted = df[feature_cols]
 X = df[feature_cols].values
 y = df['IPFVSALTRO'].values
 X_id = df['ID Lab'].values
@@ -133,6 +136,11 @@ for train_ix, test_ix in cv.split(X):
     # list_shap_values.append(shap_values)
     list_test_sets.append(test_ix)
 
+X_train_df = pandas.DataFrame(X_train,
+                              columns=feature_cols)
+df_class = df['IPFVSALTRO'].iloc[:-1]
+X_train_df['IPFVSALTRO'] = df_class.values
+
 test_set = list_test_sets[0]
 for i in range(2, len(list_test_sets)):
     test_set = np.concatenate((test_set, list_test_sets[i]), axis=0)
@@ -150,8 +158,24 @@ model.get_booster().feature_names = feature_cols
 plot_conf_matrix(model, y_true, y_pred, classes)
 
 count = 0
-xgboost.plot_importance(model.get_booster(), importance_type='gain')
-xgboost.plot_importance(model.get_booster(), importance_type='weight')
+dataframes = []
+for i in range(len(models)):
+    feat_importances = pandas.DataFrame(models[i].feature_importances_, index=X_not_converted.columns, columns=["Importance"])
+    dataframes.append(feat_importances)
+
+feat_importances_sum = reduce(lambda x,y: x.add(y, fill_value=0), dataframes)
+print(feat_importances_sum)
+
+feat_importances_sum.sort_values(by='Importance', ascending=False, inplace=True)
+feat_importances_sum.plot(kind='bar', figsize=(9, 7))
+plt.show()
+
+"""
+for i in range(len(models)):
+    xgboost.plot_importance(models[i].get_booster(), importance_type='gain')
+    xgboost.plot_importance(models[i].get_booster(), importance_type='weight')
+"""
+
 fig, ax = plt.subplots(figsize=(20, 20))
 for i in range(len(feature_cols)):
     plot_tree(model.get_booster(), num_trees=count, ax=ax)
@@ -159,6 +183,16 @@ for i in range(len(feature_cols)):
     count += 1
 # calculate accuracy
 # print(cv.get_n_splits(X))
+
+dice_data = dice_ml.Data(dataframe=X_train_df, continuous_features=feature_cols, outcome_name='IPFVSALTRO')
+
+dice_model = dice_ml.Model(model=model, backend='sklearn')
+exp = dice_ml.Dice(dice_data, dice_model, method='random')
+e = exp.generate_counterfactuals(X_test, total_CFs=5, desired_class="opposite", features_to_vary=['Genere', 'FVC%', 'Lin%', '2-DDCT KL-6', 'FEV1%', 'DLCO'])
+
+e.cf_examples_list[18].visualize_as_dataframe(show_only_changes=True, display_sparse_df=False)
+e.cf_examples_list[19].visualize_as_dataframe(show_only_changes=True, display_sparse_df=False)
+
 
 shap.summary_plot(shap_values, plot_type='bar', feature_names=feature_cols, show=True)
 shap_global_charts(models, 0, X_test, feature_cols)

@@ -9,6 +9,7 @@ from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, precision_recall_curve
 from useful_methods import features_encoding, shap_graphs_decision_tree, plot_conf_matrix, GSCV_tuning_model, \
     shap_global_charts_tree_exp
+from functools import reduce
 
 pandas.set_option('display.max_columns', None)
 data = pandas.read_csv('new Data Set Fibrosi.csv')
@@ -41,8 +42,7 @@ y_true, y_pred = list(), list()
 X_train, X_test = [], []
 y_train, y_test = [], []
 
-
-""" men dataset decision tree """
+""" Classification task for men's dataset """
 
 for train_ix, test_ix in cv.split(X):
     # split data
@@ -65,7 +65,8 @@ for train_ix, test_ix in cv.split(X):
     print("predicted ", y_pred)
 
 plt.figure(figsize=(10, 10))
-plot_tree(model, feature_names=feature_cols_gender, class_names=['ALTRO', 'IPF'], max_depth=model.max_depth, filled=True)
+plot_tree(model, feature_names=feature_cols_gender, class_names=['ALTRO', 'IPF'], max_depth=model.max_depth,
+          filled=True)
 
 plt.show()
 
@@ -119,7 +120,6 @@ for train_ix, test_ix in cv.split(X):
     list_shap_values.append(shap_values)
     list_test_sets.append(test_ix)
 
-
 """X_train_df = pandas.DataFrame(X_train,
                               columns=feature_cols_gender)
 df_class = df['IPFVSALTRO'].iloc[:-1]
@@ -138,18 +138,32 @@ plt.show()
 
 plot_conf_matrix(model, y_true, y_pred, classes)
 
-feat_importances = pandas.DataFrame(model.feature_importances_, index=X_not_converted.columns, columns=["Importance"])
-feat_importances.sort_values(by='Importance', ascending=False, inplace=True)
-feat_importances.plot(kind='bar', figsize=(9, 7))
+dataframes = []
+for i in range(len(models)):
+    feat_importances = pandas.DataFrame(models[i].feature_importances_, index=X_not_converted.columns, columns=["Importance"])
+    dataframes.append(feat_importances)
+
+feat_importances_sum = reduce(lambda x,y: x.add(y, fill_value=0), dataframes)
+print(feat_importances_sum)
+
+
+feat_importances_sum.sort_values(by='Importance', ascending=False, inplace=True)
+feat_importances_sum.plot(kind='bar', figsize=(9, 7))
 plt.show()
 
+shap.initjs()
+sample_idx = 0
+# shap.summary_plot(shap_values[1][:], plot_type='bar', feature_names=feature_cols, show=False)
+plt.show()
+#shap_global_charts_tree_exp(models, sample_idx, X_test, feature_cols_gender)
+for sample_idx in range(len(X_train)):
+    shap_graphs_decision_tree(models[sample_idx], X, X_train, feature_cols_gender, sample_idx, y_true, X_id)
+    sample_idx += 1
 
 y_true, y_pred = list(), list()
 X_train, X_test = [], []
 y_train, y_test = [], []
-
-
-""" women dataset decision tree """
+""" Classification task for women's dataset """
 
 for train_ix, test_ix in cv.split(X_w):
     # split data
@@ -172,7 +186,8 @@ for train_ix, test_ix in cv.split(X_w):
     print("predicted ", y_pred)
 
 plt.figure(figsize=(10, 10))
-plot_tree(model, feature_names=feature_cols_gender, class_names=['ALTRO', 'IPF'], max_depth=model.max_depth, filled=True)
+plot_tree(model, feature_names=feature_cols_gender, class_names=['ALTRO', 'IPF'], max_depth=model.max_depth,
+          filled=True)
 
 plt.show()
 

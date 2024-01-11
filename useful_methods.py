@@ -20,7 +20,7 @@ def features_encoding(df):
     df['Fumo'].replace(['si', 'no'], [0, 1], inplace=True)
 
 
-def shap_graphs_logreg(model, X_not_scaled, X, X_train, feature_cols, sample_idx, y_true):
+def shap_graphs_logreg(model, X_not_scaled, X, X_train, feature_cols, sample_idx, y_true, X_id):
     explainer = shap.Explainer(model, X_train, feature_names=feature_cols)
     shap_values = explainer.shap_values(X_train[sample_idx][:])
     print("Expected/Base Value: \n", explainer.expected_value)
@@ -34,14 +34,14 @@ def shap_graphs_logreg(model, X_not_scaled, X, X_train, feature_cols, sample_idx
                        link='logit', feature_names=feature_cols, show=False)
     file_name = f'{sample_idx} decision plot'
     plt.subplots_adjust(left=0.252)
-    plt.title(f'Sample: {sample_idx} \n Predicted: {prediction}, Real value: {y_true[sample_idx]}', y=1.05)
+    plt.title(f'Sample: {X_id[sample_idx]} \n Predicted: {prediction}, Real value: {y_true[sample_idx]}', y=1.05, x=-0.17)
     plt.savefig(file_name)
     plt.show()
     shap_values_for_wf = explainer(X)
     shap.waterfall_plot(shap_values_for_wf[sample_idx], max_display=len(feature_cols), show=False)
     file_name = f'{sample_idx} wf plot'
     plt.subplots_adjust(left=0.300)
-    plt.title(f'Sample: {sample_idx} \n Predicted: {prediction}, Real value: {y_true[sample_idx]}', y=1.05)
+    plt.title(f'Sample: {X_id[sample_idx]} Predicted: {prediction}, Real value: {y_true[sample_idx]}', y=1.10, x=-0.02)
     plt.savefig(file_name)
     plt.show()
 
@@ -123,14 +123,18 @@ def shap_graphs_decision_tree(model, X, X_train, feature_cols, sample_idx, y_tru
     shap.plots.waterfall(shap_values[:, :, 1][sample_idx, :], max_display=len(feature_cols), show=False)
     file_name = f'{sample_idx} wf plot'
     plt.subplots_adjust(left=0.300)
-    plt.title(f'Sample: {X_id[sample_idx]} \n Predicted: {prediction}, Real value: {y_true[sample_idx]}', y=1.05)
+    plt.subplots_adjust(top=0.850)
+    plt.subplots_adjust(bottom=0.133)
+    plt.title(f'Sample: {X_id[sample_idx]} \n Predicted: {prediction}, Real value: {y_true[sample_idx]}', y=1.00, x=-0.20)
     plt.savefig(file_name)
     plt.show()
     shap.decision_plot(explainer.expected_value[1], explainer.shap_values(X)[1][sample_idx], X[[sample_idx]],
                        link='logit', feature_names=feature_cols, show=False)
     file_name = f'{sample_idx} decision plot'
     plt.subplots_adjust(left=0.252)
-    plt.title(f'Sample: {X_id[sample_idx]} \n Predicted: {prediction}, Real value: {y_true[sample_idx]}', y=1.05)
+    plt.subplots_adjust(top=0.845)
+    plt.subplots_adjust(bottom=0.170)
+    plt.title(f'Sample: {X_id[sample_idx]} Predicted: {prediction}, Real value: {y_true[sample_idx]}', y=1.10, x=-0.02)
     plt.savefig(file_name)
     plt.show()
     """ 
@@ -178,8 +182,8 @@ def GSCV_tuning_model(X, y, cv, parameters):
             grid = GridSearchCV(tune_model, parameters, cv=cv, verbose=1, n_jobs=-1)
             grid.fit(X_train, y_train)
 
-        plot_grid_search(grid)
-        table_grid_search(grid, all_ranks=True)
+            plot_grid_search(grid)
+            table_grid_search(grid, all_ranks=True)
     elif var == 'Y' and choice == 2:
         for train_ix, test_ix in cv.split(X):
             parameters
@@ -190,8 +194,8 @@ def GSCV_tuning_model(X, y, cv, parameters):
             grid = GridSearchCV(tune_model, parameters, cv=cv, verbose=1, n_jobs=-1)
             grid.fit(X_train, y_train)
 
-        plot_grid_search(grid)
-        table_grid_search(grid, all_ranks=True)
+            plot_grid_search(grid)
+            table_grid_search(grid, all_ranks=True)
 
     elif var == 'Y' and choice == 3:
         for train_ix, test_ix in cv.split(X):
@@ -203,8 +207,8 @@ def GSCV_tuning_model(X, y, cv, parameters):
             grid = GridSearchCV(tune_model, parameters, cv=cv, verbose=1, n_jobs=-1)
             grid.fit(X_train, y_train)
 
-        plot_grid_search(grid)
-        table_grid_search(grid, all_ranks=True)
+            plot_grid_search(grid)
+            table_grid_search(grid, all_ranks=True)
 
     elif var == 'Y' and choice == 4:
         for train_ix, test_ix in cv.split(X):
@@ -216,8 +220,8 @@ def GSCV_tuning_model(X, y, cv, parameters):
             grid = GridSearchCV(tune_model, parameters, cv=cv, verbose=1, n_jobs=-1)
             grid.fit(X_train, y_train)
 
-        plot_grid_search(grid)
-        table_grid_search(grid, all_ranks=True)
+            plot_grid_search(grid)
+            table_grid_search(grid, all_ranks=True)
     else:
         print("check")
 

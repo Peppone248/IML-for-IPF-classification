@@ -9,7 +9,10 @@ from sklearn.model_selection import GridSearchCV, LeaveOneOut
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report
 from sklearn.preprocessing import MinMaxScaler
 from useful_methods import features_encoding, shap_graphs_logreg, plot_conf_matrix, GSCV_tuning_model, shap_global_charts
-from ceml.ceml.sklearn import generate_counterfactual
+import dice_ml
+from functools import reduce
+import scipy.spatial as sp
+import scipy
 
 plt.rcParams["axes.grid"] = False
 pandas.set_option('display.max_columns', None)
@@ -28,18 +31,19 @@ classes = ['ALTRO', 'IPF']
 X_display = df[feature_cols]
 X = df[feature_cols].values
 y = df['IPFVSALTRO'].values
+X_id = df['ID Lab'].values
 X_not_scaled = X
 
-scaler = MinMaxScaler(feature_range=(0, 1))
-scaler.fit(X)
-X = scaler.transform(df[feature_cols].values)
-
+"""scaler = MinMaxScaler(feature_range=(0, 1))
+scaler.fit(X)"""
+X = df[feature_cols].values
 
 cv = LeaveOneOut()
 
 y_true, y_pred = list(), list()
 X_train, X_test = [], []
 y_train, y_test = [], []
+
 for train_ix, test_ix in cv.split(X):
     # split data
     X_train, X_test = X[train_ix, :], X[test_ix, :]
@@ -75,10 +79,10 @@ GSCV_tuning_model(X,y,cv, parameters = {
 y_true, y_pred = list(), list()
 X_train, X_test = [], []
 y_train, y_test = [], []
-c=0
 list_test_sets = list()
 shap_values = None
 models = []
+list_shap_values = list()
 
 for train_ix, test_ix in cv.split(X):
     # split data
@@ -110,10 +114,14 @@ for train_ix, test_ix in cv.split(X):
         shap_values = explainer.shap_values(X_test)
     else:
         shap_values += explainer.shap_values(X_test)
-    # list_shap_values.append(shap_values)
+    list_shap_values.append(shap_values)
     list_test_sets.append(test_ix)
-    print('Computing counterfactural: \n')
-    print(generate_counterfactual(model, X, y_target=0, features_whitelist=feature_cols))
+
+# X_train_not_sc = scaler.inverse_transform(X_train)
+X_train_df = pandas.DataFrame(X_train,
+                              columns=feature_cols)
+df_class = df['IPFVSALTRO'].iloc[:-1]
+X_train_df['IPFVSALTRO'] = df_class.values
 
 test_set = list_test_sets[0]
 for i in range(2, len(list_test_sets)):
@@ -134,10 +142,27 @@ plt.show()
 print(model.coef_)
 print(np.std(X, 0)*model.coef_)
 coefficients = model.coef_[0]
-feature_importance = pandas.DataFrame({'Feature': df[feature_cols].columns, 'Importance': np.abs(coefficients)})
-feature_importance = feature_importance.sort_values('Importance', ascending=True)
-feature_importance.plot(x='Feature', y='Importance', kind='barh', figsize=(10, 6))
+dataframes = []
+for i in range(len(models)):
+    feat_importances = pandas.DataFrame(models[i].coef_[0], index=X_display.columns, columns=["Importance"])
+    dataframes.append(feat_importances)
+
+feat_importances_sum = reduce(lambda x,y: x.add(y, fill_value=0), dataframes)
+print(feat_importances_sum)
+
+
+feat_importances_sum.sort_values(by='Importance', ascending=False, inplace=True)
+feat_importances_sum.plot(kind='bar', figsize=(9, 7))
 plt.show()
+plt.show()
+
+dice_data = dice_ml.Data(dataframe=X_train_df, continuous_features=feature_cols, outcome_name='IPFVSALTRO')
+dice_model = dice_ml.Model(model=model, backend='sklearn')
+exp = dice_ml.Dice(dice_data, dice_model, method='random')
+e = exp.generate_counterfactuals(X_test, total_CFs=5, desired_class="opposite")
+e.cf_examples_list[2].visualize_as_dataframe(show_only_changes=True)
+e.cf_examples_list[3].visualize_as_dataframe(show_only_changes=True)
+e.visualize_as_dataframe(show_only_changes=True)
 
 shap.initjs()
 shap.summary_plot(shap_values, plot_type='bar', feature_names=feature_cols, show=True)
@@ -145,5 +170,5 @@ shap_global_charts(models, 0, X_test, feature_cols)
 sample_idx = 0
 # shap_global_interpret_graphs(model, X, X_train, feature_cols)
 for sample_idx in range(len(X_train)):
-    shap_graphs_logreg(models[sample_idx], X_not_scaled, X, X_train, feature_cols, sample_idx, y_true)
+    shap_graphs_logreg(models[sample_idx], X_not_scaled, X, X_train, feature_cols, sample_idx, y_true, X_id)
     sample_idx += 1

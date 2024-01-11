@@ -8,6 +8,8 @@ from sklearn.tree import DecisionTreeClassifier, export_graphviz, plot_tree
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, classification_report
 from useful_methods import plot_conf_matrix, GSCV_tuning_model, features_encoding, shap_graphs_decision_tree, \
     shap_global_charts, shap_global_charts_tree_exp
+from functools import reduce
+import dice_ml
 
 pandas.set_option('display.max_columns', None)
 data = pandas.read_csv('new Data Set Fibrosi.csv')
@@ -15,10 +17,11 @@ df = pandas.DataFrame(data)
 
 features_encoding(df)
 
-df = df.drop('ID Lab', axis=1)
+# df = df.drop('ID Lab', axis=1)
 df = df.dropna()
 
-feature_cols_prognosis = ['2-DDCT KL-6', '2-DDCT MIR21', '2-DDCT MIR92A', 'Età', 'Fumo']
+feature_cols_prognosis = ['2-DDCT KL-6', '2-DDCT MIR21', '2-DDCT MIR92A', 'Età', 'Fumo',
+                          'Macro%']
 
 classes = ['LENTA', 'RAPIDA']
 
@@ -55,15 +58,6 @@ for train_ix, test_ix in cv.split(X):
 
 plt.figure(figsize=(10, 10))
 plot_tree(model, feature_names=feature_cols_prognosis, class_names=classes, max_depth=model.max_depth, filled=True)
-
-cm = confusion_matrix(y_true, y_pred, labels=model.classes_)
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=classes)
-matrix = disp.plot()
-
-
-feat_importances = pandas.DataFrame(model.feature_importances_, index=X_not_converted.columns, columns=["Importance"])
-feat_importances.sort_values(by='Importance', ascending=False, inplace=True)
-feat_importances.plot(kind='bar', figsize=(9, 7))
 plt.show()
 
 y_true, y_pred = list(), list()
@@ -71,7 +65,6 @@ X_train, X_test = [], []
 y_train, y_test = [], []
 
 GSCV_tuning_model(X, y, cv, parameters={'criterion': ['gini', 'entropy'],
-                                        'splitter': ['random', 'best'],
                                         'max_depth': [2, 4, 6, 8, 10],
                                         'min_samples_leaf': [1, 2, 4, 5, 8, 10],
                                         'min_samples_split': [2, 4, 5, 8, 10],
@@ -93,9 +86,9 @@ for train_ix, test_ix in cv.split(X):
     model = DecisionTreeClassifier(criterion='gini',
                                    splitter='best',
                                    random_state=42,
-                                   max_depth=2,
-                                   min_samples_split=2,
-                                   min_samples_leaf=1
+                                   max_depth=4,
+                                   min_samples_split=10,
+                                   min_samples_leaf=2
                                    )
     model.fit(X_train, y_train)
     # evaluate model
@@ -119,8 +112,10 @@ for train_ix, test_ix in cv.split(X):
     list_shap_values.append(shap_values)
     list_test_sets.append(test_ix)
 
-plt.figure(figsize=(10, 10))
-plot_tree(model, feature_names=feature_cols_prognosis, class_names=classes, max_depth=model.max_depth, filled=True)
+X_train_df = pandas.DataFrame(X_train,
+                              columns=['2-DDCT KL-6', '2-DDCT MIR21', '2-DDCT MIR92A', 'Età', 'Fumo', 'Macro%'])
+df_class = df['RAPIDAVSLENTA'].iloc[:-1]
+X_train_df['RAPIDAVSLENTA'] = df_class.values
 
 plot_conf_matrix(model, y_true, y_pred, classes)
 plt.show()
@@ -132,8 +127,33 @@ for i in range(2, len(list_test_sets)):
     shap_values = np.concatenate((shap_values, np.array(list_shap_values[i])), axis=1)
 # bringing back variable names
 X_test = pandas.DataFrame(X[test_set], columns=feature_cols_prognosis)
-print('X_test: ', X_test)
-print('Shap_v: ', shap_values)
+
+dataframes = []
+for i in range(len(models)):
+    feat_importances = pandas.DataFrame(models[i].feature_importances_, index=X_not_converted.columns, columns=["Importance"])
+    dataframes.append(feat_importances)
+
+feat_importances_sum = reduce(lambda x,y: x.add(y, fill_value=0), dataframes)
+print(feat_importances_sum)
+
+feat_importances_sum.sort_values(by='Importance', ascending=False, inplace=True)
+feat_importances_sum.plot(kind='bar', figsize=(9, 7))
+plt.show()
+
+""" Counterfactuals calculation """
+
+continuous_features = ['2-DDCT KL-6', '2-DDCT MIR21', '2-DDCT MIR92A', 'Età', 'Macro%']
+
+dice_data = dice_ml.Data(dataframe=X_train_df, continuous_features=continuous_features, outcome_name='RAPIDAVSLENTA')
+dice_model = dice_ml.Model(model=models[1], backend='sklearn')
+exp = dice_ml.Dice(dice_data, dice_model, method='random')
+e = exp.generate_counterfactuals(X_test, total_CFs=5, desired_class="opposite")
+e.cf_examples_list[22].visualize_as_dataframe(show_only_changes=True)
+# e.cf_examples_list[17].visualize_as_dataframe(show_only_changes=True)
+e.cf_examples_list[9].visualize_as_dataframe(show_only_changes=True)
+e.visualize_as_dataframe(show_only_changes=True)
+
+
 # creating explanation plot for the whole experiment, the first dimension from shap_values indicate the class we are predicting (0=0, 1=1)
 shap.summary_plot(shap_values[1], X_test, plot_type='bar')
 shap.decision_plot(explainer.expected_value[1], shap_values[1], feature_names=feature_cols_prognosis)

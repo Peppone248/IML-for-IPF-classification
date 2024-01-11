@@ -11,7 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, precision_recall_curve
 from useful_methods import features_encoding, shap_graphs_decision_tree, plot_conf_matrix, GSCV_tuning_model, \
     shap_global_charts_tree_exp
-from numpy.linalg import norm
+from functools import reduce
 import scipy.spatial as sp
 import scipy
 
@@ -29,8 +29,13 @@ df = df.dropna()
 feature_cols = ['Genere', 'Fumo', 'FVC%', 'FEV1%', 'DLCO', 'Macro%', 'Neu%', 'Lin%', 'Età',
                 '2-DDCT KL-6', '2-DDCT MIR21', 'FEV1%/FVC%', '2-DDCT MIR92A']
 
+"""
+COSINE SIMILARITY AND SCALAR PRODUCT MATRICES
+"""
+
 cosine_sim_feat_by_rows = df
 cosine_sim_feat_by_rows = cosine_sim_feat_by_rows.set_index('ID Lab')
+print(cosine_sim_feat_by_rows)
 v = cosine_similarity(cosine_sim_feat_by_rows.values)
 cosine_sim_feat_by_rows = pandas.DataFrame(v, columns=df['ID Lab'])
 cosine_sim_feat_by_rows.index = df['ID Lab']
@@ -73,9 +78,6 @@ sns.set()
 sns.heatmap(cosine_df, annot=True, fmt='.2f', linewidths=.7)
 plt.legend([],[], frameon=False)
 plt.show()
-
-"""cosine = 1 - sp.distance.cdist(df['Genere'], new_df, 'cosine')
-print(cosine)"""
 
 classes = ['ALTRO', 'IPF']
 
@@ -195,21 +197,23 @@ X_train_df = pandas.DataFrame(X_train,
 df_class = df['IPFVSALTRO'].iloc[:-1]
 X_train_df['IPFVSALTRO'] = df_class.values
 
-precision, recall, thresholds = precision_recall_curve(y_train, y_prob_train)
-plt.fill_between(recall, precision)
-plt.ylabel("Precision")
-plt.xlabel("Recall")
-plt.title("Train Precision-Recall curve")
-plt.show()
-
 plt.figure(figsize=(10, 10))
 plot_tree(model, feature_names=feature_cols, class_names=classes, max_depth=model.max_depth, filled=True)
 
 plot_conf_matrix(model, y_true, y_pred, classes)
 
-feat_importances = pandas.DataFrame(model.feature_importances_, index=X_not_converted.columns, columns=["Importance"])
-feat_importances.sort_values(by='Importance', ascending=False, inplace=True)
-feat_importances.plot(kind='bar', figsize=(9, 7))
+dataframes = []
+for i in range(len(models)):
+    feat_importances = pandas.DataFrame(models[i].feature_importances_, index=X_not_converted.columns, columns=["Importance"])
+    dataframes.append(feat_importances)
+
+feat_importances_sum = reduce(lambda x,y: x.add(y, fill_value=0), dataframes)
+print(feat_importances_sum)
+
+
+feat_importances_sum.sort_values(by='Importance', ascending=False, inplace=True)
+feat_importances_sum.plot(kind='bar', figsize=(9, 7))
+plt.show()
 
 test_set = list_test_sets[0]
 shap_values = np.array(list_shap_values[0])
@@ -219,6 +223,9 @@ for i in range(2, len(list_test_sets)):
 
 # bringing back variable names
 X_test = pandas.DataFrame(X[test_set], columns=feature_cols)
+
+""" Cosine similarity and scalar product matrices for shap values """
+
 list_sv_for_cosine = []
 for i in range(len(list_shap_values)):
     list_sv_for_cosine.append(list_shap_values[i][1][0])
@@ -270,7 +277,7 @@ plt.legend([],[], frameon=False)
 plt.show()
 
 
-
+""" Counterfactuals calculation """
 
 """for i in range(len(list_shap_values)): """
 
@@ -284,6 +291,9 @@ e.cf_examples_list[8].final_cfs_df.to_csv(path_or_buf='counterfactuals_dt - 8.cs
 e.cf_examples_list[12].final_cfs_df.to_csv(path_or_buf='counterfactuals_dt - 12.csv', index=True)
 e.cf_examples_list[13].final_cfs_df.to_csv(path_or_buf='counterfactuals_dt - 13.csv', index=True)
 e.visualize_as_dataframe(show_only_changes=True)"""
+
+""" Plot SHAP charts """
+
 
 shap.initjs()
 sample_idx = 0
